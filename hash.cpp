@@ -1,22 +1,26 @@
 #include "hash.h"
+#include <string.h>
+unsigned long long HashStack(Stack* stk) {
+    char* struct_ptr = (char*)stk;
+    return GavGavHash((char*)stk->data, stk->size * sizeof(Elem_t)) + GavGavHash(struct_ptr, sizeof(Stack));
+}
 
-int GavGavHash(Stack* stk)
+unsigned long long GavGavHash(char* data, size_t size)
 {
     int m = 995;
     int seed = 0;
     int r = 24;
-    int len = stk->size;
-    int h = seed ^ len;
+    int h = seed ^ size;
 
-    char* data = (char*)stk->data;
+    char* arr = data;
     int k = 0;
 
-    while (len >= 4)
+    while (size >= 4)
     {
-        k = data[0];
-        k |= data[1] << 8;
-        k |= data[2] << 16;
-        k |= data[3] << 24;
+        k = arr[0];
+        k |= arr[1] << 8;
+        k |= arr[2] << 16;
+        k |= arr[3] << 24;
 
         k *= m;
         k ^= k >> r;
@@ -25,18 +29,18 @@ int GavGavHash(Stack* stk)
         h *= m;
         h ^= k;
 
-        data += 4;
-        len -= 4;
+        arr += 4;
+        size -= 4;
     }
 
-    switch (len)
+    switch (size)
     {
     case 3:
-        h ^= data[2] << 16;
+        h ^= arr[2] << 16;
     case 2:
-        h ^= data[1] << 8;
+        h ^= arr[1] << 8;
     case 1:
-        h ^= data[0];
+        h ^= arr[0];
         h *= m;
     };
 

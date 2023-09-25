@@ -3,6 +3,7 @@
 #include <math.h>
 #include "stack.h"
 
-int GavGavHash(Stack* stk);
+unsigned long long HashStack(Stack* stk);
+unsigned long long GavGavHash(char* data, size_t size);
 
 #endif

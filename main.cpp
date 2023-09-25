@@ -10,10 +10,10 @@ int main()
     
     StackPush(&stk, 1);
     StackPush(&stk, 2);
-    stk.data[0] = 3;
     StackPush(&stk, 3);
-
+    stk.capacity = 5;
     StackPush(&stk, 3);
+    printf("%d", sizeof(stk));
     StackDtor(&stk);
 
 

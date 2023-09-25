@@ -13,8 +13,8 @@ typedef int Elem_t;
 const int POISON = INT_MAX;
 const Canary_t STRUCT_CANARY_L_VAL = 0xFEE1DEAD;
 const Canary_t STRUCT_CANARY_R_VAL = 0xFEE1DEAD;
-const Canary_t DATA_CANARY_L_VAL = 0xDEADDEAD;
-const Canary_t DATA_CANARY_R_VAL = 0xDEADDEAD;
+const Canary_t DATA_CANARY_L_VAL =   0xDEADDEAD;
+const Canary_t DATA_CANARY_R_VAL =   0xDEADDEAD;
 
 enum Errors
 {
@@ -43,7 +43,8 @@ struct Stack {
 	size_t capacity;
 	size_t size;
 	int status;
-	int hash_sum;
+	unsigned long long* hash_sum;
+	size_t offset;
 	DumpInfo info;
 	Canary_t right_canary;
 };
