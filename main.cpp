@@ -6,6 +6,7 @@ int main()
 {
     
     Stack stk = {};
+    // stk.capacity = 0;
     StackCtor(&stk, 12);
     
     StackPush(&stk, 1);
