@@ -32,10 +32,20 @@ static int StackDump_(const Stack* stk, const char* file, size_t line, const cha
 	return 0;
 }
 
+unsigned long long HashStack_(Stack* stk) {
+	char* data = (char*)stk;
+	int sum = 0;
+	for (int i = 0; i < sizeof(Stack); ++i) {
+		sum += data[i];
+	}
+	return sum;
+}
+
 static int SetError(unsigned* all_errors, int error) {
 	*all_errors |= (1 << error);
 	return 0;
 }
+
 
 // printError
 static int PrintErrorInfo(unsigned error) {
@@ -62,12 +72,12 @@ int StackVerify(Stack* stk) {
 	}
 	if (!stk->data) SetError(&error, DATA_NULLPTR);
 	if (stk->capacity < stk->size) SetError(&error, RANGE_ERROR);
-	if (*(stk->hash_sum) != HashStack(stk)) SetError(&error, HASH_ERROR);
+	if (*(stk->hash_sum) != HashStack_(stk)) SetError(&error, HASH_ERROR);
 
 	Canary_t data_canary_l = ((Canary_t*)stk->data)[-1];
 	Canary_t data_canary_r = *((Canary_t*)(stk->data + stk->capacity));
 
-	if ((stk->left_canary != STRUCT_CANARY_L_VAL || stk->right_canary != STRUCT_CANARY_R_VAL) || 
+	if ((stk->right_canary != STRUCT_CANARY_L_VAL || stk->right_canary != STRUCT_CANARY_R_VAL) || 
 		(data_canary_l != DATA_CANARY_L_VAL || data_canary_r != DATA_CANARY_R_VAL))
 	{
 		SetError(&error, CANARY_ERROR);
@@ -98,12 +108,11 @@ int StackCtor_(Stack* stk, size_t capacity, const char* obj_name, const char* fu
 	stk->left_canary = STRUCT_CANARY_L_VAL;
 	stk->right_canary = STRUCT_CANARY_R_VAL;
 	
-	StackDump(stk);
 	stk->info.obj_name = obj_name;
 	stk->info.file = file;
 	stk->info.func = func;
 	stk->info.line = line;
-	*(stk->hash_sum) = HashStack(stk);
+	*(stk->hash_sum) = HashStack_(stk);
 	ON_DEBUG(StackVerify(stk));
 	stk->status = CONSTRUCTED;
 	return 0;
@@ -173,7 +182,7 @@ int StackPush(Stack* stk, Elem_t value) {
 
 	stk->data[stk->size] = value;
 	stk->size++;
-	ON_DEBUG(*(stk->hash_sum) = HashStack(stk);)
+	ON_DEBUG(*(stk->hash_sum) = HashStack_(stk);)
 
 	ON_DEBUG(StackVerify(stk));
 	return 0;
@@ -188,7 +197,7 @@ int StackPop(Stack* stk, Elem_t* Ret_value) {
 	*Ret_value = stk->data[stk->size-1];
 	stk->data[stk->size - 1] = POISON;
 	stk->size--;
-	ON_DEBUG(*(stk->hash_sum) = HashStack(stk);)
+	ON_DEBUG(*(stk->hash_sum) = HashStack_(stk);)
 
 	ON_DEBUG(StackVerify(stk));
 	return 0;

@@ -1,8 +1,8 @@
 #include "hash.h"
 #include <string.h>
 unsigned long long HashStack(Stack* stk) {
-    char* struct_ptr = (char*)stk;
-    return GavGavHash((char*)stk->data, stk->size * sizeof(Elem_t)) + GavGavHash(struct_ptr, sizeof(Stack));
+    char* struct_ptr = (char*)stk + sizeof(Canary_t);
+    return GavGavHash((char*)stk->data, stk->size * sizeof(Elem_t)) + GavGavHash(struct_ptr, sizeof(Stack) - sizeof(Canary_t));
 }
 
 unsigned long long GavGavHash(char* data, size_t size)
