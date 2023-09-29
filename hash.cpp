@@ -2,7 +2,7 @@
 #include <string.h>
 
 unsigned long long HashStack(Stack* stk) {
-    char* struct_ptr = (char*)stk;
+    char* struct_ptr = (char*)stk + sizeof(Canary_t);
     return GavGavHash((char*)stk->data - sizeof(Canary_t), stk->capacity * sizeof(Elem_t) + 2 * sizeof(Canary_t))
         + GavGavHash(struct_ptr, sizeof(*stk));
 }

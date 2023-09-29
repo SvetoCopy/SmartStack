@@ -76,7 +76,7 @@ int StackVerify(Stack* stk) {
 	Canary_t data_canary_l = ((Canary_t*)stk->data)[-1];
 	Canary_t data_canary_r = *((Canary_t*)(stk->data + stk->capacity));
 
-	if ((stk->left_canary != STRUCT_CANARY_L_VAL || stk->right_canary != STRUCT_CANARY_R_VAL) || 
+	if ((stk->right_canary != STRUCT_CANARY_L_VAL || stk->right_canary != STRUCT_CANARY_R_VAL) || 
 		(data_canary_l != DATA_CANARY_L_VAL || data_canary_r != DATA_CANARY_R_VAL))
 	{
 		SetError(&error, CANARY_ERROR);
