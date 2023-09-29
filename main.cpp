@@ -10,7 +10,8 @@ int main()
     StackPush(&stk, 2);
     
     StackPush(&stk, 3);
-
+    int a = 0;
+    StackPop(&stk, &a);
     StackPush(&stk, 3);
     StackDtor(&stk);
 

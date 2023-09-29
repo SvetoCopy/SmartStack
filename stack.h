@@ -58,7 +58,7 @@ struct Stack {
 	size_t capacity;
 	size_t size;
 	int status;
-	
+
 	DumpInfo info;
 	unsigned long long hash_sum;
 	Canary_t right_canary;

@@ -19,6 +19,7 @@ static int StackDump_(const Stack* stk, const char* file, size_t line, const cha
 			stk->data, 
 			stk->hash_sum);
 	printf("{\n");
+	printf("%ull\n", ((Canary_t*)(stk->data))[-1]);
 	for (size_t i = 0; i < stk->capacity; i++) {
 		if (stk->data[i] == POISON) {
 			printf("*[%zu] = POISON\n", i);
@@ -27,6 +28,7 @@ static int StackDump_(const Stack* stk, const char* file, size_t line, const cha
 			printf("*[%zu] = %d\n", i, stk->data[i]);
 		}
 	}
+	printf("%ull\n", (Canary_t)(stk->data[stk->capacity]));
 	printf("}\n");
 	printf("____________________________\n");
 	return 0;
@@ -74,8 +76,9 @@ int StackVerify(Stack* stk) {
 	if (hash_sum != HashStack(stk)) SetError(&error, HASH_ERROR);
 	stk->hash_sum = hash_sum;
 	Canary_t data_canary_l = ((Canary_t*)stk->data)[-1];
-	Canary_t data_canary_r = *((Canary_t*)(stk->data + stk->capacity));
+	Canary_t data_canary_r = *(Canary_t*)((char*)stk->data + stk->capacity * sizeof(Elem_t));
 
+	
 	if ((stk->right_canary != STRUCT_CANARY_L_VAL || stk->right_canary != STRUCT_CANARY_R_VAL) || 
 		(data_canary_l != DATA_CANARY_L_VAL || data_canary_r != DATA_CANARY_R_VAL))
 	{
@@ -98,16 +101,19 @@ int StackCtor_(Stack* stk, size_t capacity, const char* obj_name, const char* fu
 			return -1;}
 	);
 
-	int offset = (ALIGNMENT - (sizeof(Elem_t) * capacity) % ALIGNMENT) % ALIGNMENT;
-	stk->data = (Elem_t*)calloc(capacity * sizeof(Elem_t) + 2 * sizeof(Canary_t) + offset, sizeof(char));
+	while (capacity * sizeof(Elem_t) % ALIGNMENT != 0)
+		capacity++;
 
-	*((Canary_t* )(stk->data)) = 0xDEADDEAD;
+	stk->data = (Elem_t*)calloc(capacity * sizeof(Elem_t) + 2 * sizeof(Canary_t), sizeof(char));
+
+	*((Canary_t*)(stk->data)) = 0xDEADDEAD;
 	stk->data = (Elem_t*)((Canary_t*)stk->data + 1);
 
 	stk->capacity = capacity;
 
-	*(Canary_t*)((char*)stk->data + stk->capacity * sizeof(Elem_t) + offset) = 0xDEADDEAD;
-	
+	*(Canary_t*)((char*)stk->data + stk->capacity * sizeof(Elem_t)) = 0xDEADDEAD;
+
+
 	stk->left_canary = STRUCT_CANARY_L_VAL;
 	stk->right_canary = STRUCT_CANARY_R_VAL;
 	
@@ -135,17 +141,26 @@ int StackDtor(Stack* stk) {
 	return -1;
 }
 int StackRealloc(Stack* stk, size_t capacity) {
-	
 	ON_DEBUG(if (StackVerify(stk) != 0) return -1);
-	int offset = (ALIGNMENT - (sizeof(Elem_t) * capacity) % ALIGNMENT) % ALIGNMENT;
-	Elem_t * tmp = (Elem_t*)realloc((char*)stk->data - sizeof(Canary_t), capacity * sizeof(Elem_t) + 2 * sizeof(Canary_t) + offset);
+	
+	while (capacity * sizeof(Elem_t) % ALIGNMENT != 0)
+		capacity++;
 
-	if (tmp != nullptr) stk->data = tmp;
+	Elem_t * tmp = (Elem_t*)realloc((char*)stk->data - sizeof(Canary_t), capacity * sizeof(Elem_t) + 2 * sizeof(Canary_t));
+
+	if (tmp != nullptr) {
+		stk->data = tmp;
+	}
 
 	stk->data = (Elem_t*)((char*)stk->data + sizeof(Canary_t));
+	
 	stk->capacity = capacity;
+	*(Canary_t*)((char*)stk->data + stk->capacity * sizeof(Elem_t)) = 0xDEADDEAD;
 
-	ON_DEBUG(if (StackVerify(stk) != 0) return -1;);
+	ON_DEBUG(
+		stk->hash_sum = 0;
+		stk->hash_sum = HashStack(stk)
+		);
 	return 0;
 }
 
@@ -195,7 +210,6 @@ int StackPush(Stack* stk, Elem_t value) {
 }
 int StackPop(Stack* stk, Elem_t* Ret_value) {
 	ON_DEBUG(if (StackVerify(stk) != 0) return -1);
-
 	if (stk->size < (stk->capacity / 4)) {
 		StackRealloc(stk, stk->capacity / 4 + 1);
 	}
