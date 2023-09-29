@@ -1,26 +1,24 @@
 #include "hash.h"
 #include <string.h>
-unsigned long long HashStack(Stack* stk) {
-    char* struct_ptr = (char*)stk + sizeof(Canary_t);
-    return GavGavHash((char*)stk->data, stk->size * sizeof(Elem_t)) + GavGavHash(struct_ptr, sizeof(Stack) - sizeof(Canary_t));
-}
 
+unsigned long long HashStack(Stack* stk) {
+    char* struct_ptr = (char*)stk;
+    return GavGavHash((char*)stk->data - sizeof(Canary_t), stk->capacity * sizeof(Elem_t) + 2 * sizeof(Canary_t))
+        + GavGavHash(struct_ptr, sizeof(*stk));
+}
 unsigned long long GavGavHash(char* data, size_t size)
 {
-    int m = 995;
-    int seed = 0;
-    int r = 24;
-    int h = seed ^ size;
+    unsigned int m = 0x5bd1e995;
+    unsigned int seed = 0;
+    unsigned int r = 24;
+    unsigned int h = seed ^ size;
 
-    char* arr = data;
-    int k = 0;
+    unsigned char* arr = (unsigned char*)data;
+    unsigned int k = 0;
 
     while (size >= 4)
     {
-        k = arr[0];
-        k |= arr[1] << 8;
-        k |= arr[2] << 16;
-        k |= arr[3] << 24;
+        k = arr[0] | (arr[1] << 8) | (arr[2] << 16) | (arr[3] << 24);
 
         k *= m;
         k ^= k >> r;
@@ -47,5 +45,6 @@ unsigned long long GavGavHash(char* data, size_t size)
     h ^= h >> 13;
     h *= m;
     h ^= h >> 15;
+
     return h;
 }

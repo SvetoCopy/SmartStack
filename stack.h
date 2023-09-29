@@ -60,7 +60,7 @@ struct Stack {
 	int status;
 	
 	DumpInfo info;
-	unsigned long long* hash_sum;
+	unsigned long long hash_sum;
 	Canary_t right_canary;
 };
 int StackCtor_(Stack* stk, size_t capacity, const char* obj_name, const char* func, size_t line,const char* file );
