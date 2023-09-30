@@ -9,11 +9,6 @@
 
 
 #ifdef _DEBUG
-	#define ON_DEBUG(code, ...) code, __VA_ARGS__
-#else
-	#define ON_DEBUG(code) 
-#endif
-#ifdef _DEBUG
 #define StackDump(stk) StackDump_(stk, __FILE__, __LINE__, __FUNCTION__)
 #define StackCtor(a, b) StackCtor_(a, b, #a, __FUNCTION__, __LINE__, __FILE__)
 
@@ -45,11 +40,19 @@ enum Status {
 	BROKEN = -1
 };
 
+struct StackLogger {
+	FILE* file;
+	const char* name;
+};
+
+
+
 struct DumpInfo {
 	size_t line;
 	const char* obj_name;
 	const char* file;
 	const char* func;
+	
 };
 
 struct Stack {
@@ -64,7 +67,7 @@ struct Stack {
 	Canary_t right_canary;
 };
 int StackCtor_(Stack* stk, size_t capacity, const char* obj_name, const char* func, size_t line,const char* file );
-
+int StackLoggerCtor(StackLogger* logger, const char* name);
 #else
 struct Stack {
 	Elem_t* data;

@@ -3,14 +3,28 @@
 #include "hash.h"
 
 #ifdef _DEBUG
+
+
+StackLogger logger = {};
+bool is_opened = false;
+
+int StackLoggerCtor(StackLogger* logger_, const char* name) {
+	logger_->name = name;
+	fopen_s(&(logger_->file), logger_->name, "w");
+	is_opened = true;
+	return 0;
+}
+
 static int StackDump_(const Stack* stk, const char* file, size_t line, const char* func) {
-	printf("____________DUMP____________\n");
-	printf("Stack[%p]\n", stk);
-	printf("Object %s created in %s() from %s (%zu line)\n",
+	if (!is_opened) StackLoggerCtor(&logger, "dump.log");
+	FILE* f = logger.file;
+	fprintf(f, "____________DUMP____________\n");
+	fprintf(f, "Stack[%p]\n", stk);
+	fprintf(f, "Object %s created in %s() from %s (%zu line)\n",
 			stk->info.obj_name, stk->info.func, stk->info.file, stk->info.line);
-	printf("Dump called in %s() from %s (%zu line)\n", func, file, line);
-	printf("\n");
-	printf("size = %zu\n"
+	fprintf(f, "Dump called in %s() from %s (%zu line)\n", func, file, line);
+	fprintf(f, "\n");
+	fprintf(f, "size = %zu\n"
 		   "capacity = %zu\n"
 		   "data[0x%X]\n"
 		   "hash_sum = %ull\n", 
@@ -18,19 +32,20 @@ static int StackDump_(const Stack* stk, const char* file, size_t line, const cha
 			stk->capacity, 
 			stk->data, 
 			stk->hash_sum);
-	printf("{\n");
-	printf("%ull\n", ((Canary_t*)(stk->data))[-1]);
+	fprintf(f, "{\n");
+	fprintf(f, "%ull\n", ((Canary_t*)(stk->data))[-1]);
 	for (size_t i = 0; i < stk->capacity; i++) {
 		if (stk->data[i] == POISON) {
-			printf("*[%zu] = POISON\n", i);
+			fprintf(f, "*[%zu] = POISON\n", i);
 		}
 		else {
-			printf("*[%zu] = %d\n", i, stk->data[i]);
+			fprintf(f, "*[%zu] = %d\n", i, stk->data[i]);
 		}
 	}
-	printf("%ull\n", (Canary_t)(stk->data[stk->capacity]));
-	printf("}\n");
-	printf("____________________________\n");
+	fprintf(f, "%ull\n", (Canary_t)(stk->data[stk->capacity]));
+	fprintf(f, "}\n");
+	fprintf(f, "____________________________\n");
+	// fclose(f);
 	return 0;
 }
 
@@ -42,22 +57,19 @@ static int SetError(unsigned* all_errors, int error) {
 
 // printError
 static int PrintErrorInfo(unsigned error) {
-	
-
 	#define check(error_code) ( error & (1 << error_code) ) == (1 << error_code)
-	if (check(STK_NULLPTR))  printf("\nstack ptr is null\n");
-	if (check(DATA_NULLPTR)) printf("\nstack->data ptr is null\n");
-	if (check(RANGE_ERROR))  printf("\nrange error\n");
-	if (check(CANARY_ERROR)) printf("\ncanary error\n");
-	if (check(HASH_ERROR))   printf("\nhash mismatch\n");
+	if (check(STK_NULLPTR))  fprintf(logger.file, "\nstack ptr is null\n");
+	if (check(DATA_NULLPTR)) fprintf(logger.file, "\nstack->data ptr is null\n");
+	if (check(RANGE_ERROR))  fprintf(logger.file, "\nrange error\n");
+	if (check(CANARY_ERROR)) fprintf(logger.file, "\ncanary error\n");
+	if (check(HASH_ERROR))   fprintf(logger.file, "\nhash mismatch\n");
 	#undef check
 	return 0;
-
-	
 };
 
 int StackVerify(Stack* stk) {
 	unsigned error = 0;
+	if (!is_opened) StackLoggerCtor(&logger, "dump.log");
 
 	if (!stk) {
 		SetError(&error, STK_NULLPTR);
@@ -79,13 +91,14 @@ int StackVerify(Stack* stk) {
 	Canary_t data_canary_r = *(Canary_t*)((char*)stk->data + stk->capacity * sizeof(Elem_t));
 
 	
-	if ((stk->right_canary != STRUCT_CANARY_L_VAL || stk->right_canary != STRUCT_CANARY_R_VAL) || 
+	if ((stk->left_canary != STRUCT_CANARY_L_VAL || stk->right_canary != STRUCT_CANARY_R_VAL) || 
 		(data_canary_l != DATA_CANARY_L_VAL || data_canary_r != DATA_CANARY_R_VAL))
 	{
 		SetError(&error, CANARY_ERROR);
 	}
 	
 	if (error != 0) {
+		
 		stk->status = BROKEN;
 		PrintErrorInfo(error);
 		StackDump(stk);
@@ -95,11 +108,11 @@ int StackVerify(Stack* stk) {
 }
 
 int StackCtor_(Stack* stk, size_t capacity, const char* obj_name, const char* func, size_t line, const char* file) {
-	ON_DEBUG(
-		if (!stk) {
-			printf("nullptr stack_ptr");
-			return -1;}
-	);
+	if (!is_opened) StackLoggerCtor(&logger, "dump.log");
+
+	if (!stk) {
+		fprintf(logger.file, "nullptr stack_ptr");
+		return -1;}
 
 	while (capacity * sizeof(Elem_t) % ALIGNMENT != 0)
 		capacity++;
@@ -124,7 +137,7 @@ int StackCtor_(Stack* stk, size_t capacity, const char* obj_name, const char* fu
 	stk->hash_sum = 0;
 	stk->status = CONSTRUCTED;
 	stk->hash_sum = HashStack(stk);
-	ON_DEBUG(if (StackVerify(stk) != 0) return -1;);
+	if (StackVerify(stk) != 0) return -1;
 	return 0;
 }
 
@@ -135,13 +148,13 @@ int StackDtor(Stack* stk) {
 		stk->data = nullptr;
 		stk->capacity = 0;
 		stk->size = 0;
-
+		fclose(logger.file);
 		return 0;
 	}
 	return -1;
 }
 int StackRealloc(Stack* stk, size_t capacity) {
-	ON_DEBUG(if (StackVerify(stk) != 0) return -1);
+	if (StackVerify(stk) != 0) return -1;
 	
 	while (capacity * sizeof(Elem_t) % ALIGNMENT != 0)
 		capacity++;
@@ -157,10 +170,48 @@ int StackRealloc(Stack* stk, size_t capacity) {
 	stk->capacity = capacity;
 	*(Canary_t*)((char*)stk->data + stk->capacity * sizeof(Elem_t)) = 0xDEADDEAD;
 
-	ON_DEBUG(
-		stk->hash_sum = 0;
-		stk->hash_sum = HashStack(stk)
-		);
+	
+	stk->hash_sum = 0;
+	stk->hash_sum = HashStack(stk);
+	return 0;
+}
+
+int StackPush(Stack* stk, Elem_t value) {
+	if (StackVerify(stk) != 0) return -1;
+
+	if (stk->size >= stk->capacity / 2) {
+		StackRealloc(stk, 2 * stk->capacity);
+	}
+
+	stk->data[stk->size] = value;
+	stk->size++;
+
+	stk->hash_sum = 0;
+	stk->hash_sum = HashStack(stk);
+
+	if (StackVerify(stk) != 0) return -1;
+	return 0;
+}
+int StackPop(Stack* stk, Elem_t* Ret_value) {
+	if (!Ret_value) {
+		if (!is_opened) StackLoggerCtor(&logger, "dump.log");
+		fprintf(logger.file, "Ret value null");
+		return -1;
+	}
+	if (StackVerify(stk) != 0) return -1;
+
+	if (stk->size < (stk->capacity / 4)) {
+		StackRealloc(stk, stk->capacity / 4 + 1);
+	}
+
+	*Ret_value = stk->data[stk->size - 1];
+	stk->data[stk->size - 1] = POISON;
+	stk->size--;
+
+	stk->hash_sum = 0;
+	stk->hash_sum = HashStack(stk);
+
+	if (StackVerify(stk) != 0) return -1;
 	return 0;
 }
 
@@ -189,42 +240,30 @@ int StackRealloc(Stack* stk, size_t capacity) {
 	return 0;
 }
 
-#endif
-
 int StackPush(Stack* stk, Elem_t value) {
-	ON_DEBUG(if (StackVerify(stk) != 0) return -1);
-
 	if (stk->size >= stk->capacity / 2) {
 		StackRealloc(stk, 2 * stk->capacity);
 	}
 
 	stk->data[stk->size] = value;
 	stk->size++;
-	ON_DEBUG(
-		stk->hash_sum = 0;
-	stk->hash_sum = HashStack(stk)
-	);
-
-	ON_DEBUG(if (StackVerify(stk) != 0) return -1);
 	return 0;
 }
+
 int StackPop(Stack* stk, Elem_t* Ret_value) {
-	ON_DEBUG(if (StackVerify(stk) != 0) return -1);
 	if (stk->size < (stk->capacity / 4)) {
 		StackRealloc(stk, stk->capacity / 4 + 1);
 	}
 
-	*Ret_value = stk->data[stk->size-1];
+	*Ret_value = stk->data[stk->size - 1];
 	stk->data[stk->size - 1] = POISON;
 	stk->size--;
-	ON_DEBUG(
-		stk->hash_sum = 0;
-		stk->hash_sum = HashStack(stk)
-		);
-
-	ON_DEBUG(if (StackVerify(stk) != 0) return -1);
 	return 0;
 }
+
+#endif
+
+
 
 
 

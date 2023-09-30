@@ -2,10 +2,11 @@
 #include <string.h>
 
 unsigned long long HashStack(Stack* stk) {
-    char* struct_ptr = (char*)stk + sizeof(Canary_t);
+    char* struct_ptr = (char*)stk;
     return GavGavHash((char*)stk->data - sizeof(Canary_t), stk->capacity * sizeof(Elem_t) + 2 * sizeof(Canary_t))
         + GavGavHash(struct_ptr, sizeof(*stk));
 }
+
 unsigned long long GavGavHash(char* data, size_t size)
 {
     unsigned int m = 0x5bd1e995;
